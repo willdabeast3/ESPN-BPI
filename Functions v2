@@ -1,0 +1,337 @@
+#William Arana
+
+import pandas as pd
+import numpy as np
+import re 
+import scipy.stats as stats
+import math
+
+
+
+def read(url):
+   # Read in the data
+#Input: (url) to ESPN site with table 
+#Output: (x) data frame with team name and score columns merged and random rows shifted
+    
+    try:
+        x = pd.read_html(url) #expected case 
+         #Make it a data frame
+        x = x[0]
+        #Get rid of unused columns
+        x = x.dropna(how='all', axis = 'columns')
+        del x['MATCHUP QUALITY']
+
+        # Fill in blanks with 0 for downstream cleaning 
+        x['Score'] = x['Score'].fillna(0)
+
+        
+    except ValueError: # if there is no table, data frame of 8 NaNs 
+        x = pd.DataFrame(columns = ['NaN', 'NaN','NaN', 'NaN','NaN', 'NaN','NaN', 'NaN'])
+        
+    
+    return x 
+   
+   def shift(x):   
+    # Input: (x) data frame with unnamed columns and random rowsshifted
+    #Output: (cdf) data frame with shifted and renammed columns
+    #Due to how ESPN formats the table, data reads in shifted, must shift every row where Score == 0
+        #Shift SCORE
+    orig_score = x['Score']
+    shifted = x.shift(-1,axis=1)
+    shifted_score = shifted['Score']
+
+    new_scores = np.where(x['Score']==0, shifted_score, orig_score)
+
+    #Shift PRED PT DIFF
+    orig_ppd = x['PRED PT DIFF']
+    shifted = x.shift(-1,axis=1)
+    shifted_ppd = shifted['PRED PT DIFF']
+
+    new_ppd = np.where(x['Score']==0, shifted_ppd, orig_ppd)
+
+    #Shift WIN PROB
+    og_winp = x['WIN PROB']
+    shifted = x.shift(-1,axis=1)
+    shifted_winp = shifted['WIN PROB']
+
+    new_winp = np.where(x['Score']==0, shifted_winp, og_winp)
+
+    #Rename unnamed columns
+    duration = x['Unnamed: 0']
+    team = x['Unnamed: 1']
+
+    #Create a clen data frame (cdf)
+    cdf = pd.DataFrame()
+    cdf['FINAL'] = duration
+    cdf['TEAM'] = team
+    cdf['POINTS'] = new_scores
+    cdf['PRED PT DIFF'] = new_ppd
+    cdf['WIN PROB'] = new_winp
+
+   
+    return cdf
+    
+    def shift(x):   
+    # Input: (x) data frame with unnamed columns and random rowsshifted
+    #Output: (cdf) data frame with shifted and renammed columns
+    #Due to how ESPN formats the table, data reads in shifted, must shift every row where Score == 0
+        #Shift SCORE
+    orig_score = x['Score']
+    shifted = x.shift(-1,axis=1)
+    shifted_score = shifted['Score']
+
+    new_scores = np.where(x['Score']==0, shifted_score, orig_score)
+
+    #Shift PRED PT DIFF
+    orig_ppd = x['PRED PT DIFF']
+    shifted = x.shift(-1,axis=1)
+    shifted_ppd = shifted['PRED PT DIFF']
+
+    new_ppd = np.where(x['Score']==0, shifted_ppd, orig_ppd)
+
+    #Shift WIN PROB
+    og_winp = x['WIN PROB']
+    shifted = x.shift(-1,axis=1)
+    shifted_winp = shifted['WIN PROB']
+
+    new_winp = np.where(x['Score']==0, shifted_winp, og_winp)
+
+    #Rename unnamed columns
+    duration = x['Unnamed: 0']
+    team = x['Unnamed: 1']
+
+    #Create a clen data frame (cdf)
+    cdf = pd.DataFrame()
+    cdf['FINAL'] = duration
+    cdf['TEAM'] = team
+    cdf['POINTS'] = new_scores
+    cdf['PRED PT DIFF'] = new_ppd
+    cdf['WIN PROB'] = new_winp
+
+   
+    return cdf
+    
+    def clean(cdf):
+    #Input: Mostly clean data frame
+    #Output: Completely clean data frame - proper data types and symbols in all columns 
+    
+    #Clean Data  
+        #Replace non-numeric values with 0
+        cdf['PRED PT DIFF'] = cdf['PRED PT DIFF'].replace(['--', 'NaN', '*'], '0')
+        cdf['WIN PROB'] = cdf['WIN PROB'].replace(['--', 'NaN', '*', '%'], '0')
+        cdf['POINTS'] = cdf['POINTS'].replace(['--', 'NaN', '*'], '0')
+        #loose the % sign
+        cdf['WIN PROB'] = cdf['WIN PROB'].replace({'%':'0'}, regex=True)
+
+        # Froce the data type
+        convert_dict = {'POINTS': float,
+                        'PRED PT DIFF': float,
+                         'WIN PROB': float
+
+                        }
+
+        cdf = cdf.astype(convert_dict)
+
+        #Convert % to decimal 
+        cdf['WIN PROB']=cdf['WIN PROB'].div(100).round(3)
+
+        #Get rid of invalid rows (Cancelled and Postponed games)
+        cdf = cdf[(cdf['POINTS'] >= 0.0)]
+        
+        cdf = cdf
+        return cdf 
+        
+        def spreads(rl_start=0, rl_step =3):
+# Input: (rl_start, rl_step) Start and step values which create brackets of spreads to analyze 
+# Otuput: (dfsr) data frame organized by spread brackets 
+     
+
+
+
+  
+    # Define the array 
+    hr_start = rl_step
+    hr_stop = math.ceil(df['PRED PT DIFF'].max()) + rl_step #set the top of the array by the maximum predicted point difference
+    hr_step = rl_step
+    rl_stop= (hr_stop-rl_step) 
+
+
+
+    #Create a data frame that only has rows with data in PRED PT DIFF
+    dfs = (df[(df['PRED PT DIFF'] != 0)])
+
+    #Create the arrays and print to check 
+    spread_range_low = np.arange(rl_start,rl_stop,rl_step)
+    spread_range_high = np.arange(hr_start,hr_stop,hr_step)
+    print('From values', spread_range_low)
+    print('To values',   spread_range_high)
+
+    max_lr_end = math.ceil(df['PRED PT DIFF'].max()) 
+    print(max_lr_end)
+
+    # check inputs and give feedback 
+    if (spread_range_low[-1] > max_lr_end) == True: 
+        print('Error: The highest value allowed in To Values is:', max_lr_end, 'Try a smaller step size')
+    if (rl_start < hr_start) == False: 
+        print('WARNING: The start value of the low range should be less than the start value of the high range')
+    if (rl_stop < hr_stop) == False: 
+        print('WARNING: The stop value of the low range should be less than the stop value of the high range')  
+    if (rl_step == hr_step) == False: 
+        print('wARNING: The steo values should be equal')
+    if (len(spread_range_low) == len(spread_range_high)) == False:
+        print('ERROR: length of ranges must be equal')
+
+    ##Spread Range Calculations
+    num = []
+    avg_pred_spread = []
+    avg_real_spread = []
+    sd_pred_spread = []
+
+
+    for i in range (0,len(spread_range_low),1): 
+
+        num.append(len(dfs[(dfs['PRED PT DIFF'] >= spread_range_low[i])  & (dfs['PRED PT DIFF'] <spread_range_high[i])])) 
+        avg_pred_spread.append((dfs[(dfs['PRED PT DIFF'] >= spread_range_low[i])  & (dfs['PRED PT DIFF'] <spread_range_high[i])])['PRED PT DIFF'].mean())
+        avg_real_spread.append((dfs[(dfs['PRED PT DIFF'] >= spread_range_low[i])  & (dfs['PRED PT DIFF'] <spread_range_high[i])])['SPREAD'].mean())
+        sd_pred_spread.append(np.std((dfs[(dfs['PRED PT DIFF'] >= spread_range_low[i])  & (dfs['PRED PT DIFF'] <spread_range_high[i])])['PRED PT DIFF']))
+
+
+    ## P-Vale calculations     
+    t_val = []
+    p_val = []
+    se = []
+    delta = []
+    for i in range(0,len(num),1):
+        se = ((sd_pred_spread[i])/((np.sqrt(num[i]))))
+        delta = (avg_pred_spread[i]-avg_real_spread[i]) 
+        t_val.append((delta/se))
+        p_val.append(stats.t.sf(abs(t_val[i]), df=(num[i]-1))*2) #two tailed one sample 
+
+    ##Check to make sure spread range entered considers all samples 
+    from tabulate import tabulate
+
+    games = len(dfs)
+    samples = sum(num)
+    lost_samples = games-samples
+    table = [['Number Games', 'Total Samples', 'Unused Samples'], [games, samples, lost_samples]]  
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+
+    ## Display Results 
+
+    #Round off for legibility
+    avg_pred_spread = np.round(avg_pred_spread,3)
+    avg_real_spread = np.round(avg_real_spread,3)
+    #p_val = np.round(p_val,5)
+
+
+    #Create a data frame to display results 
+    dfsr = pd.DataFrame(spread_range_low,columns=['From']) 
+    dfsr['To'] = spread_range_high
+    dfsr['Avg. Prediction'] = avg_pred_spread  
+    dfsr['Real Spread'] = avg_real_spread
+    dfsr['Sample STD'] = sd_pred_spread
+    dfsr['Two Tailed P-Value'] = p_val
+    dfsr['Sample Size'] = num
+    return dfsr 
+
+def wins(top_start=0.5499, top_stop = 1.0, top_step =  0.0499, bottom_start = 0.50, bottom_stop = 1.0, bottom_step = 0.05): 
+    
+    top = np.arange(top_start, top_stop, top_step)
+    bottom = np.arange(bottom_start, bottom_stop, bottom_step)
+    bottom = np.round(bottom,5)
+
+    ## Win Percent Calculations 
+    n = []
+    w = []
+    p = []
+    avg_win_p_pred = []
+    sd_pred_winp = []
+    for i in range (0,len(bottom),1): 
+        n.append(len(df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i])] ))
+        avg_win_p_pred.append(((df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i])] ))['WIN PROB'].mean())
+        w.append(len(df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i]) &(df['WON'] == True)]))
+        p.append(round((w[i])/(n[i]),4))
+        sd_pred_winp.append(np.std(df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i])] )['WIN PROB']) 
+
+    ##P-Value Calculations
+
+    t_val = []
+    p_val = []
+    se = []
+    delta = []
+    for i in range(0,len(n),1):
+        se = ((sd_pred_winp[i])/((np.sqrt(n[i]))))
+        delta = (avg_win_p_pred[i]-p[i]) 
+        t_val.append((delta/se))
+        p_val.append(stats.t.sf(abs(t_val[i]), df=(n[i]-1))*2) #two tailed one sample 
+        
+        #print brackets, percent, and sample size in a table 
+    from tabulate import tabulate
+
+    games = len((df[(df['WIN PROB'] != 0)]))
+    samples = sum(n)
+    lost_samples = games-samples
+    table = [['Number Games', 'Total Samples', 'Unused Samples'], [games, samples, lost_samples]]  
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+
+    avg_win_p_pred = np.round(avg_win_p_pred,4)
+
+    dfr = pd.DataFrame(bottom, columns=['From %'])
+    dfr['To %'] = top
+    dfr['Avg Prediction %'] = avg_win_p_pred
+    dfr['Real Win %'] = p
+    dfr['Sample STD'] = sd_pred_winp
+    dfr['Two Tailed P-Value'] = p_val
+    dfr['Sample Size'] = n
+    return dfr
+
+def wins(top_start=0.5499, top_stop = 1.0, top_step =  0.0499, bottom_start = 0.50, bottom_stop = 1.0, bottom_step = 0.05): 
+    
+    top = np.arange(top_start, top_stop, top_step)
+    bottom = np.arange(bottom_start, bottom_stop, bottom_step)
+    bottom = np.round(bottom,5)
+
+    ## Win Percent Calculations 
+    n = []
+    w = []
+    p = []
+    avg_win_p_pred = []
+    sd_pred_winp = []
+    for i in range (0,len(bottom),1): 
+        n.append(len(df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i])] ))
+        avg_win_p_pred.append(((df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i])] ))['WIN PROB'].mean())
+        w.append(len(df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i]) &(df['WON'] == True)]))
+        p.append(round((w[i])/(n[i]),4))
+        sd_pred_winp.append(np.std(df[(df['WIN PROB'] >= bottom[i]) & (df['WIN PROB'] <= top[i])] )['WIN PROB']) 
+
+    ##P-Value Calculations
+
+    t_val = []
+    p_val = []
+    se = []
+    delta = []
+    for i in range(0,len(n),1):
+        se = ((sd_pred_winp[i])/((np.sqrt(n[i]))))
+        delta = (avg_win_p_pred[i]-p[i]) 
+        t_val.append((delta/se))
+        p_val.append(stats.t.sf(abs(t_val[i]), df=(n[i]-1))*2) #two tailed one sample 
+        
+        #print brackets, percent, and sample size in a table 
+    from tabulate import tabulate
+
+    games = len((df[(df['WIN PROB'] != 0)]))
+    samples = sum(n)
+    lost_samples = games-samples
+    table = [['Number Games', 'Total Samples', 'Unused Samples'], [games, samples, lost_samples]]  
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid'))
+
+    avg_win_p_pred = np.round(avg_win_p_pred,4)
+
+    dfr = pd.DataFrame(bottom, columns=['From %'])
+    dfr['To %'] = top
+    dfr['Avg Prediction %'] = avg_win_p_pred
+    dfr['Real Win %'] = p
+    dfr['Sample STD'] = sd_pred_winp
+    dfr['Two Tailed P-Value'] = p_val
+    dfr['Sample Size'] = n
+    return dfr
