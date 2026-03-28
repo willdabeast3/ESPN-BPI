@@ -24,24 +24,63 @@ An empirical evaluation of ESPN's Basketball Power Index (BPI) predictions for N
 - **Scoreboard API**: `site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard`
 - **Predictor API**: `sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/events/{id}/competitions/{id}/predictor`
 
-## Usage
+## Getting Started
+
+```bash
+git clone https://github.com/yourusername/ESPN-BPI.git
+cd ESPN-BPI
+pip install numpy pandas scipy matplotlib jupyter
+```
+
+### Run the report (using cached data)
+
+Pre-fetched season CSVs are included in `data/`. To run the analysis:
+
+```bash
+jupyter notebook report.ipynb
+```
+
+Run all cells to generate calibration tables, regression plots, and trend analysis.
+
+### Fetch fresh data
+
+Each season takes ~3 minutes to fetch. Use `throttle=True` to avoid ESPN's rate limit.
 
 ```python
-from bpi import fetch_season, save_data, load_data
+from bpi import fetch_season, save_data
 
-# Fetch a season (throttle=True to avoid rate limiting)
 df = fetch_season(2025, throttle=True)
 save_data(df, 'data/season_2024_25.csv')
-
-# Load cached data
-df = load_data('data/season_2024_25.csv')
-
-# Run analysis
-from bpi import win_prob_calibration, win_prob_scores, spread_accuracy
-print(win_prob_calibration(df))
-print(win_prob_scores(df))
-print(spread_accuracy(df))
 ```
+
+To fetch all seasons:
+
+```python
+import os
+from bpi import fetch_season, save_data
+
+os.makedirs('data', exist_ok=True)
+for year in range(2011, 2026):
+    label = f'{year-1}_{str(year)[2:]}'
+    path = f'data/season_{label}.csv'
+    if not os.path.exists(path):
+        df = fetch_season(year, throttle=True)
+        save_data(df, path)
+```
+
+If some seasons end up with missing predictions (WIN_PROB=0) due to rate limiting, wait 15-60 minutes and run:
+
+```bash
+python refetch_missing.py
+```
+
+### Run analysis from the command line
+
+```bash
+python bpi.py
+```
+
+This fetches a small date range and prints calibration, spread accuracy, and trend results.
 
 ## Requirements
 
